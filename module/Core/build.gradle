@@ -107,7 +107,7 @@ dependencies {
     runtime(group: 'net.sf.ehcache', name: 'ehcache', version: '2.10.5')
 
     // https://mvnrepository.com/artifact/com.github.ua-parser/uap-java
-    compile group: 'com.github.ua-parser', name: 'uap-java', version: '1.5.0'
+    compile group: 'com.github.ua-parser', name: 'uap-java', version: '1.5.2'
 
     //To fix NoClassDefFoundError: org/w3c/dom/ElementTraversal
     //xml-api-1.4.01 was part of opensaml-2.5.x, but excluded from 2.6.x
