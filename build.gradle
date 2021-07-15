@@ -1,0 +1,497 @@
+buildscript {
+	apply from: "$rootDir/artifactory.properties"
+	apply from :'common.gradle'
+	apply from :'common-idea.gradle'
+
+	repositories {
+		maven { credentials{
+			username="$artifactory_username"
+			password="$artifactory_password" }
+			url "$artifactory_url/jasper-libs-snapshot-local" }
+		maven { credentials{
+			username="$artifactory_username"
+			password="$artifactory_password" }
+			url "$artifactory_url/jasper-libs-release-local" }
+		maven { credentials{
+			username="$artifactory_username"
+			password="$artifactory_password" }
+			url "$artifactory_url/jasper-ext-release-local" }
+		maven { credentials{
+			username="$artifactory_username"
+			password="$artifactory_password" }
+			url "$artifactory_url/jasper-libs-release-group" }
+	}
+
+	dependencies {
+		classpath 'com.bmuschko:gradle-cargo-plugin:2.2.3'
+	}
+}
+apply git
+
+task help {
+	println "Full Documentation"
+	print "https://confluence-eng-sjc2.cisco.com/conf/display/ENGG/Build+3.0+Setup+by+Build.gradle"
+	println ""
+}
+
+def curDir = rootDir.getAbsolutePath()
+def workspaceName = curDir.substring(curDir.lastIndexOf(File.separator)+1, curDir.length())
+Properties props = new Properties()
+props.load(new FileInputStream(curDir + File.separator + "modules.properties"))
+ext.childModules = props.getProperty("allModules")
+gradle.startParameter.taskNames.each{
+	if(it.equals("idea")){
+		File moduleFile = new File(curDir + File.separator + "build3Module.properties")
+		if(!moduleFile.exists()){
+			throw new RuntimeException("You need to load apps first!")
+		}
+		props.load(new FileInputStream(moduleFile))
+		ext.childModules = props.getProperty("childModules")
+	}
+	else if(it.equals("loadApps")){
+		//Sanity check. case 3: All white space
+		if((apps == null) || (apps.length() == 0) || (apps?.trim().length() == 0)){
+			throw new RuntimeException("You need to specify apps!")
+		}
+	}
+}
+
+ext.localModule = Eval.me(childModules)
+
+ext.APP_SPECIAL_MODULES_LIST = ['att-csi-emulator', 'global-sim-callback', 'jasper-soap-emulator', 'tef-callback', 'tef-csp-emulator', 'vivo-msisdn-emulator']
+ext.SERVICE_MODULES_LIST = ['service-invocation-common']
+
+idea.module.iml {
+	withXml { xmlFile ->
+		def newModuleRootManager = xmlFile.asNode().component.find { it.@name == 'NewModuleRootManager' } as Node
+		def oldContentNode = newModuleRootManager.content
+		if (oldContentNode)
+			newModuleRootManager.remove(oldContentNode)
+		def contentNode = new NodeBuilder().content(url: 'file://$MODULE_DIR$') {
+			excludeFolder(url: 'file://$MODULE_DIR$/..')
+			excludeFolder(url: 'file://$MODULE_DIR$/build')
+			excludeFolder(url: 'file://$MODULE_DIR$/.gradle')
+		}
+		newModuleRootManager.append contentNode
+	}
+}
+idea.project.languageLevel = '1.7'
+idea.project.ipr {
+	beforeMerged { project ->
+		project.modulePaths.clear()
+	}
+	withXml { provider ->
+		provider.node.component.find { it.@name == 'VcsDirectoryMappings' }.mapping.@directory = '$PROJECT_DIR$'
+		provider.node.component.find { it.@name == 'VcsDirectoryMappings' }.mapping.@vcs = 'Git'
+
+		// Add option to JavaSettings
+		def javacSettings = provider.asNode().appendNode('component', [name: 'JavacSettings']);
+		def option = new NodeBuilder().option(name: 'MAXIMUM_HEAP_SIZE', value: '256')
+		javacSettings.append option
+
+		provider.asNode().appendNode('component', [name: 'CompilerConfiguration'])
+				.append new NodeBuilder().option(name: 'BUILD_PROCESS_HEAP_SIZE', value: '2048')
+
+		def artifactManager = provider.asNode().component.find { it.@name == 'ArtifactManager' } as Node
+		if (artifactManager) {
+			Node artifact = artifactManager.artifact.find { it.@type == 'exploded-war' }
+			if (artifact)
+				artifactManager.remove(artifact)
+		} else {
+			artifactManager = provider.asNode().appendNode('component', [name: 'ArtifactManager']);
+		}
+		for (subModuleName in localModule) {
+			if (project(":"+getJarName(subModuleName)).hasProperty('buildWar') && project(":"+getJarName(subModuleName)).buildWar == 'true') {
+				Properties modulesProps = new Properties()
+				File moduleFile = new File(project(":"+getJarName(subModuleName)).projectDir.absolutePath +File.separator+"gradle3.properties")
+				modulesProps.load(new FileInputStream(moduleFile))
+				ext.moduleDeps = Eval.me(modulesProps.getProperty("moduleDependencies"))
+
+				def artifact = new NodeBuilder().artifact(type: 'exploded-war', 'build-on-make': "true", name: "$subModuleName") {
+					'output-path'("\$PROJECT_DIR\$/module/$subModuleName/exploded")
+					root(id: 'root') {
+						element(id: 'directory', name: 'WEB-INF') {
+							element(id: 'directory', name: 'classes') {
+								element(id: 'module-output', name: getJarName(subModuleName)+nameSuffix)
+								element(id: 'dir-copy', path: "\$PROJECT_DIR\$/module/$subModuleName/build/config/env/local")
+								for (dependencyName in moduleDeps) {
+									if(localModule.contains(dependencyName)){
+										element(id: 'module-output', name: getJarName(dependencyName)+nameSuffix)
+										if(!"CorePrime".equals(dependencyName)) {
+											element(id: 'dir-copy', path: "\$PROJECT_DIR\$/module/$dependencyName/build/config/env/local")
+										}
+									}
+								}
+
+							}
+							element(id: 'directory', name: 'lib') {
+								def providedRuntimeDep = project(":"+getJarName(subModuleName)).configurations.providedRuntime
+								project(":"+getJarName(subModuleName)).configurations.runtime.each {
+									if (!providedRuntimeDep.contains(it) ) {
+										element(id: 'file-copy', path: it)
+									}
+								}
+							}
+						}
+						if (project(":"+getJarName(subModuleName)).configurations.hasProperty('commonWebUiZip')) {
+							if (!localModule.contains("CommonWebUI")) {
+								element(id: 'extracted-dir', path: project(":"+getJarName(subModuleName)).configurations.commonWebUiZip.asPath, 'path-in-jar': '/')
+							} else {
+								element(id: 'artifact', 'artifact-name': 'CommonWebUI')
+							}
+						}
+
+						if (project(":"+getJarName(subModuleName)).configurations.hasProperty('eSimCommonWebUiZip')) {
+							if (!localModule.contains("ESimCommonWebUI")) {
+								element(id: 'extracted-dir', path: project(":"+getJarName(subModuleName)).configurations.eSimCommonWebUiZip.asPath, 'path-in-jar': '/')
+							} else {
+								element(id: 'artifact', 'artifact-name': 'ESimCommonWebUI')
+							}
+						}
+						element(id: 'javaee-facet-resources', facet: getJarName(subModuleName)+nameSuffix+"/web/$subModuleName")
+					}
+				}
+				artifactManager.append artifact
+			} else if ("CommonWebUI".equals(subModuleName)) {
+				def artifact = new NodeBuilder().artifact(type: 'exploded-war', 'build-on-make': "true", name: "$subModuleName") {
+					'output-path'("\$PROJECT_DIR\$/module/$subModuleName/exploded")
+					root(id: 'root') {
+						element(id: 'javaee-facet-resources', facet: getJarName(subModuleName)+nameSuffix+"/web/$subModuleName")
+					}
+				}
+				artifactManager.append artifact
+			}else if ("ESimCommonWebUI".equals(subModuleName)) {
+				def artifact = new NodeBuilder().artifact(type: 'exploded-war', 'build-on-make': "true", name: "$subModuleName") {
+					'output-path'("\$PROJECT_DIR\$/module/$subModuleName/exploded")
+					root(id: 'root') {
+						element(id: 'javaee-facet-resources', facet: getJarName(subModuleName)+nameSuffix+"/web/$subModuleName")
+					}
+				}
+				artifactManager.append artifact
+			}
+		}
+
+		// Group modules
+		def projectModuleManager = provider.asNode().component.find { it.@name == 'ProjectModuleManager' } as Node
+		projectModuleManager.modules.module.each {
+			if (!it.@filepath.contains(workspaceName)) {
+				def imlModuleName = (it.@filepath.tokenize('/'))[3]
+				def projectName = (imlModuleName.tokenize('.'))[0]
+
+				if (imlModuleName.contains("-app"+nameSuffix+".iml") || APP_SPECIAL_MODULES_LIST.contains(projectName)) {
+					it.@group = "App"
+				} else if (SERVICE_MODULES_LIST.contains(projectName)) {
+					it.@group = "Service"
+				} else {
+					it.@group = "Domain"
+				}
+			}
+		}
+	}
+}
+
+
+task createProperties(type: Copy) {
+	for (subModuleName in localModule) {
+		dependsOn ":"+getJarName(subModuleName)+":copyProperties"
+	}
+}
+
+
+ideaModule.dependsOn(createProperties)
+
+subprojects {
+	apply from :"$rootDir/common.gradle"
+	apply from :"$rootDir/common-idea.gradle"
+	apply plugin: 'maven'
+
+	sourceCompatibility = JavaVersion.current()
+	version = (project.hasProperty('releaseVersion') ? project.releaseVersion as String : (majorVer + '.' + minorVer)) +  '.' + buildVer
+	version = version + (project.hasProperty('isRelease') ? "" : "-SNAPSHOT")
+    group = "com.jasperwireless"
+
+	buildscript {
+		apply from: "$rootDir/artifactory.properties"
+		repositories {
+			maven { credentials{
+				username="$artifactory_username"
+				password="$artifactory_password" }
+				url "$artifactory_url/jasper-libs-snapshot-local" }
+			maven { credentials{
+				username="$artifactory_username"
+				password="$artifactory_password" }
+				url "$artifactory_url/jasper-libs-release-local" }
+			maven { credentials{
+				username="$artifactory_username"
+				password="$artifactory_password" }
+				url "$artifactory_url/jasper-ext-release-local" }
+			maven { credentials{
+				username="$artifactory_username"
+				password="$artifactory_password" }
+				url "$artifactory_url/jasper-libs-release-group" }
+		}
+	}
+
+	tasks.withType(Upload) {
+		afterEvaluate { project ->
+			uploadArchives {
+				repositories {
+					mavenDeployer {
+						pom.version = version
+						pom.groupId = "com.jasperwireless"
+						if (project.hasProperty('isRelease') && project.isRelease == "true") {
+							repository(url: "$artifactory_upload_proxy/jasper-libs-release-local") {
+								authentication(userName: "$artifactory_username", password: "$artifactory_password")
+							}
+						} else {
+							snapshotRepository(url: "$artifactory_upload_proxy/jasper-libs-snapshot-local") {
+								authentication(userName: "$artifactory_username", password: "$artifactory_password")
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	createIdea()
+	tasks.withType(JavaCompile) {
+		if (project.hasProperty('java.warnings.hide')) {
+			options.compilerArgs += ["-nowarn", "-XDenableSunApiLintControl"]
+		}
+		options.fork = true
+		options.incremental = true // one flag, and things will get MUCH faster
+	}
+	tasks.withType(Javadoc).all { enabled = false }
+	tasks.withType(Test) {
+		maxParallelForks = project.hasProperty('maxParallelForks') ? project.maxParallelForks as int :
+				(Runtime.runtime.availableProcessors().intdiv(2) ?: 1)
+		forkEvery = project.hasProperty('forkEvery') ? project.forkEvery as int : 10
+		enableAssertions = false
+		minHeapSize='1024m'
+		maxHeapSize='4096m'
+
+		//sometimes in our builds, we just skip the tests. This check is to make sure that even if tests are skipped, the
+		//number of failed test cases are within the threshold limit. Either those test cases need to be removed or fixed,
+		//otherwise the test code never gets cleaned up
+		if (project.hasProperty('strictTestThresholds') && "$strictTestThresholds" == "true") {
+			def thresholdPercentage = 0.5
+			afterSuite { desc, result ->
+				if (!desc.parent) {
+					println()
+					println("${result.resultType} " +
+							"(${result.testCount} tests, " +
+							"${result.successfulTestCount} passed, " +
+							"${result.failedTestCount} failed, " +
+							"${result.skippedTestCount} skipped)")
+					println()
+					if ((result.failedTestCount.toInteger()) > (result.testCount.toInteger() * (thresholdPercentage / 100))) {
+						throw new Exception("Failed tests are greater than threshold limit. Failed tests should be less than ${thresholdPercentage}% of total tests")
+					}
+				}
+			}
+		}
+	}
+}
+
+// ===== Deploy testing tasks =====
+// Set defaults for Cargo:
+cargo {
+	local {
+		containerId = 'tomcat7x'
+		port = 8085
+		homeDir = file("$System.env.CATALINA_HOME")
+		jvmArgs = '-XX:MaxPermSize=1024m -Xms1536m -Xmx3072m'
+		containerProperties {
+			property 'cargo.tomcat.ajp.port', 8010
+		}
+		timeout = 1200000
+		outputFile = file('build/cargo-tomcat.log')
+	}
+}
+
+/**
+ * Returns the WAR file for a given module, such as "ProvisionApp".
+ */
+def getModuleWarFile(module) {
+	def fileNames = new FileNameFinder().getFileNames(file("./module/"+module+"/build/libs").getAbsolutePath(),"*.war")
+	if (fileNames.size() == 0) {
+		throw new IllegalArgumentException("No WAR file found at: "+ file("./module/"+module+"/build/libs"))
+	}
+	return file(fileNames[0])
+}
+
+// Define the sets of apps that should be deployed together for testing. We cannot deploy too many apps due to
+// memory considerations.
+def deployTestSets = [
+		["ProvisionApp", "WebServiceApp"],
+		["TekelecAdapterApp", "HuaweiHSS9860AdapterApp"],
+		["PcrfNotificationApp", "VaultIndexSearchApp"],
+		["HPAdapterApp", "NotificationApp"],
+		["BatchApp", "SmscAdapterApp", "PcrfAdapterApp"],
+		["RestApp", "RealyticsApp"],
+		["CSPProvisioningAdapterApp", "TefCspEmulator"],
+		["AAAServerApp", "GlobalSimCallback", "SwcApp"]
+]
+task loadApps {
+	if ( project.hasProperty("apps") ) {
+		Set appDepenciesSet = []
+		def jarNameMap = [:]
+
+		// Put jasper_dev jar name and module name to hash map
+		Eval.me(props.get("allModules")).each{
+			jarNameMap.put(getJarName(it),it)
+		}
+		// Retreive apps from command
+		def appsList = apps.split(',')
+
+		// Get all local build dependencies in order to include setting.gradle file
+		// and set each module dependencies in module level
+		Set localProjects = []
+		doLast {
+			//Get dependencies from each modules
+			localProjects = getLocalBuildDependencies(appsList,jarNameMap)
+			localProjects.each{ module ->
+				// module is a string type.We need to store in array to pass in getLocalBuildDependencies()
+				def tmpModule = []
+				tmpModule.add(module)
+				Set moduleDeps = []
+				moduleDeps = getLocalBuildDependencies(tmpModule,jarNameMap)
+				moduleDeps.remove(module)
+				setProperty(curDir + File.separator + "module"+File.separator+module+File.separator+"gradle3.properties",
+						"moduleDependencies",
+						moduleDeps)
+			}
+			setProperty(curDir + File.separator + "build3Module.properties"
+					,"childModules",
+					localProjects)
+		}
+	}
+}
+
+/**
+ * Set property information
+ * @param filepath property file path
+ * @param propertyName
+ * @param propertyValue
+ * @return
+ */
+def setProperty(filepath,propertyName,propertyValue){
+	Properties modulesProps = new Properties()
+	File moduleFile = new File(filepath)
+	if(!moduleFile.exists()){
+		moduleFile.createNewFile()
+	}
+	modulesProps.load(new FileInputStream(moduleFile))
+	modulesProps.setProperty(propertyName,warpQuote(propertyValue).toString())
+	modulesProps.store(moduleFile.newWriter(),null)
+}
+
+/**
+ * Format information for property file
+ * @param array
+ * @return
+ */
+def warpQuote(array){
+	def result = []
+	array.each{ ele ->
+		result.add("\""+ele+"\"")
+	}
+	return result
+}
+
+/**
+ * Get local build dependencies by given app list
+ * @param appsList is array type
+ * @param jarNameMap is a hashmap
+ * @return
+ */
+def getLocalBuildDependencies(appsList,jarNameMap){
+	Set localProject = []
+	appsList.each{app->
+		localProject.add(app)
+		project(":"+getJarName(app)).configurations.runtime.buildDependencies.each{dep->
+			dep.getDependencies().each{
+				// task: ':core.jar:'
+				def firstIndex = it.toString().indexOf(':')
+				def lastIndex  = it.toString().lastIndexOf(':')
+				def projectName = jarNameMap.get(it.toString().substring(firstIndex+1,lastIndex))
+				localProject.add(projectName)
+
+			}
+		}
+	}
+	return localProject
+}
+/**
+ * Main deploy testing task. Runs subtasks for each set of apps.
+ */
+task deployTest(
+		description: 'Deploys all apps to a local Tomcat and verifies that they start up correctly. Runs deployTest0, deployTest1, etc.',
+		group: 'Verification')
+deployTest.dependsOn {
+	tasks.findAll { task -> task.name.matches("deployTest[0-9]+") }
+}
+
+deployTestSets.eachWithIndex { set, index ->
+	def outputFile = file('build/cargo-tomcat.log')
+	task "deployTest${index}" {
+		description = 'Deploys apps to a local Tomcat and verifies that they start up correctly: '+set
+		group = 'Verification'
+		dependsOn("deployTest${index}_setup")
+		dependsOn("deployTest${index}_startTomcat")
+		dependsOn("deployTest${index}_checkSuccess")
+		finalizedBy("deployTest${index}_stopTomcat")
+	}
+	task "deployTest${index}_setup" << {
+		logger.lifecycle("===== Deploy test for "+set+" =====")
+		cargo {
+			deployables = [] // Reset the list of deployables
+			set.each { module ->
+				def warFile = getModuleWarFile(module)
+				logger.lifecycle("Deploying WAR file: "+warFile)
+				deployable {
+					file = warFile
+				}
+			}
+		}
+		logger.lifecycle(new Date().toString()+": Starting Tomcat, see logs: " + outputFile+", deployables="+cargo.deployables)
+	}
+
+	task "deployTest${index}_startTomcat"(type: com.bmuschko.gradle.cargo.tasks.local.CargoStartLocal, group: null) {
+		group = null
+		finalizedBy("deployTest${index}_stopTomcat")
+	} << {
+		logger.lifecycle(new Date().toString()+": Started Tomcat and apps")
+	}
+
+	task "deployTest${index}_checkSuccess" << {
+		if (outputFile.text.find("startup failed due to previous errors") != null) {
+			// Print the lines with errors
+			logger.error("========== Tomcat startup errors: ")
+			def m = outputFile.text =~ /(?i)(?m)^.+(error)s?\s+.+$/
+			m.each { logger.error(it) }
+			logger.error("==========")
+
+			// Print last few lines
+			String[] lines = outputFile
+			logger.error("========== Tail of Tomcat logs: ")
+			logger.error(lines[-20..-1].join('\n'))
+			logger.error("==========")/start
+
+			throw new Exception("App startup failed, see logs: " + outputFile)
+		}
+		logger.lifecycle("Apps started successfully, see logs: " + outputFile);
+	}
+
+	task "deployTest${index}_stopTomcat"(
+			type: com.bmuschko.gradle.cargo.tasks.local.CargoStopLocal) {
+		group = null
+	} << {
+		logger.lifecycle(new Date().toString()+": Stopped Tomcat\n========================================")
+		sleep(10 * 1000) // Wait before starting Tomcat again
+	}
+
+	tasks["deployTest${index}_startTomcat"].mustRunAfter("deployTest${index}_setup")
+	tasks["deployTest${index}_checkSuccess"].mustRunAfter(tasks["deployTest${index}_startTomcat"])
+	tasks["deployTest${index}_stopTomcat"].mustRunAfter(tasks["deployTest${index}_checkSuccess"])
+}

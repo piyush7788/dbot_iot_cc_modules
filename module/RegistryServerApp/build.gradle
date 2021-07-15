@@ -1,0 +1,108 @@
+apply from: "$rootDir/artifactory.properties"
+
+createIdea()
+
+sourceSets {
+    main {
+        resources.srcDirs 'src', 'resources/log4j'
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        // add a dependency resolve rule
+        eachDependency { details ->
+            if (details.requested.group == 'log4j' && details.requested.name == 'log4j') {
+                details.useTarget group: 'log4j', name: 'log4j', version: '1.2.17' // needed for Blitz
+            }
+        }
+    }
+}
+
+//CC-93409 tomcat9
+configurations {
+    all {
+        resolutionStrategy {
+            dependencySubstitution {
+                it.substitute it.module('org.slf4j:log4j-over-slf4j-jasper:0.+') with it.module('log4j:log4j:1.2.17')
+                it.substitute it.module('org.slf4j:log4j-over-slf4j-jasper:0.1') with it.module('log4j:log4j:1.2.17')
+            }
+        }
+    }
+}
+
+dependencies {
+    compile(group: 'com.netflix.eureka', name: 'eureka-core', version: '1.1.138')
+    compile(group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.4.1')
+
+    if (!localModule.contains("CorePrime")) {
+        runtime(group: 'com.jasperwireless', name: 'core-prime', version: '1.0.+', changing: true)
+    }
+    else{
+        runtime project(':core-prime')
+    }
+
+    runtime(group: 'com.sun.jersey', name: 'jersey-servlet', version: '1.11')
+    runtime(group: 'org.slf4j', name: 'slf4j-api', version: '1.7.5')
+    runtime(group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.4.1')
+    runtime(group: 'com.jasperwireless', name: 'jasper-logger', version: '1.0.+')
+    runtime(group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.4.1')
+    runtime(group: 'log4j', name: 'log4j', version: '1.2.17') // needed for Blitz
+}
+
+// Similar with common_war.gradle, but a special version for this app only.
+apply plugin: 'war'
+
+webAppDirName = 'web'
+war {
+    // Jar all sources first, then add it into the WEB-INF/lib folder.
+    dependsOn jar
+    classpath -= sourceSets.main.output
+    classpath += fileTree(jar.archivePath)
+
+    from('build/config/env/local') {
+        include 'config.properties'
+        into('WEB-INF/classes')
+    }
+
+    from('../../BuildInfoResources.properties') {
+        into 'WEB-INF/classes'
+    }
+}
+
+task legacyWar(type: Copy) {
+    // Temp task that copies module war file to ROOTDIR/dist/gradle and renames it using legacy naming
+    from 'build/libs'
+    include '**/*.war'
+    into '../../dist/gradle'
+    if (project.hasProperty('legacyWarName')) {
+        rename '(.+)-app-.*(\\.war)', legacyWarName+'$2'
+    } else {
+        rename '(.+)-app-.*(\\.war)', '$1$2'
+    }
+}
+
+task distWar(type: Copy) {
+    // Temp task that copies module war file to ROOTDIR/dist/gradle and renames it using legacy naming
+    from 'build/libs'
+    include '**/*.war'
+    into '../../dist'
+
+    if (project.hasProperty('legacyWarName')) {
+        rename '.*(\\.war)', legacyWarName+'$1'
+    } else {
+        rename { String fileName ->
+            fileName.replaceAll(/-\d+\.\d+\.\d+.*\.war/, '.war')
+        }
+        rename { String fileName ->
+            fileName.replace('app', '')
+        }
+        rename { String fileName ->
+            fileName.replace('-', '')
+        }
+    }
+}
+
+subprojects {
+    ext.localModule = this.localModule
+}

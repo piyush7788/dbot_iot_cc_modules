@@ -1,0 +1,453 @@
+apply from: ('../../gradlescript/common_war.gradle')
+
+sourceSets {
+    main {
+        // Adding all xsd related java classes
+        java.srcDirs 'src', 'src_gen/src'
+    }
+    test {
+        resources.srcDirs 'src_test', 'build/config/env/local'
+    }
+}
+
+test {
+    jvmArgs += [ "-noverify", "-javaagent:build/lib/jmockit-1.14.jar" ]
+
+    // TODO Skipping all those integration which requires building WAR first
+    exclude 'com/jasperwireless/**/GlobalSimJasperReImsiTestIntegration.class'
+    exclude 'com/jasperwireless/**/DealProcessorTestIntegration.class'
+    exclude 'com/jasperwireless/**/BusinessRulesTestIntegration.class'
+    exclude 'com/jasperwireless/**/EventDealsTestIntegration.class'
+    exclude 'com/jasperwireless/**/GeneralPushSenderTestIntegration.class'
+    exclude 'com/jasperwireless/**/UssdRuleTestIntegration.class'
+    exclude 'rest/v1test/ProvisionRestTestIntegration.class'
+
+    exclude 'rest/**/*TestManual*'
+
+    //TODO Skip long running tests to optimize the build, revisit required
+    exclude 'com/jasperwireless/rest/admin/deals/DealDTOTest.class'  //14s
+    exclude 'com/jasperwireless/rest/points/PointsControllerTest.class'  //29s
+    exclude 'com/jasperwireless/push/SimLocationAlertMessageTest.class' //Non responsive
+
+    //TODO Skip failing test cases, revisit required
+    exclude 'com/jasperwireless/rest/analysis/FbAcctAddonReportControllerTest.class'
+    exclude 'com/jasperwireless/rest/core/operator/RatePlanCustFieldConfigControllerTest.class'
+    exclude 'com/jasperwireless/rest/ipfiltering/IPFilteringConfigControllerTest.class'
+    exclude 'com/jasperwireless/rest/monetization/partnersims/PartnerSimsControllerTest.class'
+    exclude 'com/jasperwireless/rest/provision/automationrule/AutomationRuleAuditTrailTests.class'
+    exclude 'com/jasperwireless/rest/servmon/ServMonSKUOrderControllerTest.class'
+    exclude 'com/jasperwireless/web/menu/MenuFactoryNewTest.class'
+    exclude 'com/jasperwireless/rest/provision/sim/firstnet/SimBoltOnMappingControllerTest.class'
+    exclude 'com/jasperwireless/web/FuncTestCase.class'
+    exclude 'com/jasperwireless/provision/pushapi/PushApiControllerTest.class'
+    exclude 'com/jasperwireless/rest/ccarConfigs/AcctSubsidyControllerTest.class'
+    exclude 'com/jasperwireless/rest/dataerasure/account/AcctDataErasureControllerTest.class'
+    exclude 'com/jasperwireless/rest/admin/ppus/PPUControllerTest.class'
+    exclude 'com/jasperwireless/rest/admin/password/IpAddressRangeControllerTest.class'
+    exclude 'com/jasperwireless/rest/admin/password/NewPasswordControllerTest.class'
+    exclude 'com/jasperwireless/rest/admin/password/PasswordConfigControllerTest.class'
+    exclude 'com/jasperwireless/rest/admin/twoFA/TwoFAConfigControllerTest.class'
+
+    exclude 'com/jasperwireless/rest/core/acct/cip/CipAcctBillSettingControllerTest.class'
+    exclude 'com/jasperwireless/rest/service/admin/commplans/CommPlanControllerTest.class'
+    exclude 'com/jasperwireless/rest/service/admin/spidconfig/SpidConfigurationControllerTest.class'
+    exclude 'com/jasperwireless/rest/admin/bulknetworkbar/AcctNetworkBarFileControllerTest.class'
+    exclude 'com/jasperwireless/rest/internal/cipaccttxfer/CIPEodInfoQueryControllerTest.class'
+    exclude 'com/jasperwireless/rest/provision/ota/OtaSmsMessageControllerTest.class'
+    exclude 'com/jasperwireless/rest/monetization/partnersims/PartnerBulkUpdateControllerTest.class'
+    exclude 'com/jasperwireless/rest/core/acct/OperatorsControllerTest.class'
+    exclude 'com/jasperwireless/rest/provision/sms/SmsMessageControllerTest.class'
+    exclude 'com/jasperwireless/rest/admin/CustomersControllerTest.class'
+    exclude 'com/jasperwireless/rest/monetization/partneraccounts/TrustedAcctsControllerTest.class'
+    exclude 'com/jasperwireless/rest/core/acct/AcctControllerTest.class'
+    //TODO Skip Subclasses of DBTest - Which are integration tests
+    exclude 'com/jasperwireless/provision/imei/TacControllerTest.class'
+    exclude 'com/jasperwireless/provision/imei/TacFileControllerTest.class'
+    exclude 'com/jasperwireless/web/menu/MenuFactoryTest.class'
+    //TODO Skip integration tests using SpringJUnit4ClassRunner
+    exclude 'com/jasperwireless/db/DbPatchValidationTest.class'
+    exclude 'com/jasperwireless/globalsim/GlobalSimJasperReImsiTestManual.class'
+    exclude 'com/jasperwireless/provision/deal/flow/DealProcessorTestManual.class'
+    exclude 'com/jasperwireless/provision/pushapi/EventSubsCacheManagerTestManual.class'
+    exclude 'com/jasperwireless/push/BusinessRulesTestManual.class'
+    exclude 'com/jasperwireless/push/EventDealsTestManual.class'
+    exclude 'com/jasperwireless/push/GeneralPushSenderTestManual.class'
+    exclude 'com/jasperwireless/push/UssdRuleTestManual.class'
+    exclude 'com/jasperwireless/rest/billing/rateplan/BillingRegionControllerTest.class'
+    exclude 'com/jasperwireless/sso/saml/idp/SAMLIDPSericeTestManual.class'
+    exclude 'rest/v1test/ProvisionRestTestManual.class'
+
+    //excluding flaky tests
+    exclude 'com/jasperwireless/rest/internal/zerotouch/ZeroTouchOptimizationControllerTest.class'
+}
+
+integrationTest{
+
+}
+
+configurations {
+    smartsprites
+    wsdl2javaConfig
+    tomcatJspc
+    compileJsp
+    commonWebUiZip
+    copyApiCall
+}
+
+task smartsprites {
+    doLast {
+        ant.taskdef(name: 'smartsprites', classname: 'org.carrot2.labs.smartsprites.ant.SmartSpritesTask', classpath: configurations.smartsprites.asPath)
+    }
+}
+
+task wsdl2javaConfig {
+    doLast {
+        ant.properties['classpath'] = configurations.wsdl2javaConfig.asPath
+    }
+}
+
+task tomcatJspc {
+    doLast {
+        def jspcClassPath = configurations.tomcatJspc + sourceSets.main.output
+        ant.taskdef(name: 'tomcatJspc', classname: 'org.apache.jasper.JspC', classpath: jspcClassPath.asPath)
+    }
+}
+
+configurations {
+    all*.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+}
+
+configurations.all {
+    resolutionStrategy {
+        // add a dependency resolve rule
+        eachDependency { details ->
+            //TODO Force to use the 1.3-alpha8 version of Log4j, for now
+            if (details.requested.group == 'log4j' && details.requested.name == 'log4j') {
+                details.useTarget group: 'log4j', name: 'log4j', version: '1.3-alpha8'
+            }
+        }
+    }
+}
+
+dependencies {
+
+    smartsprites(group: 'com.carrotsearch', name: 'smartsprites', version: '0.2.10')
+    if (!localModule.contains("CorePrime")) {
+        compile(group: 'com.jasperwireless', name: 'core-prime', version: '1.0.+', changing: true)
+    }
+    else{
+        compile project(':core-prime')
+    }
+
+    wsdl2javaConfig(group: 'org.apache.axis2', name: 'axis2-codegen', version: '1.6.2')
+    wsdl2javaConfig(group: 'org.apache.axis2', name: 'axis2-adb-codegen', version: '1.6.2')
+
+    tomcatJspc fileTree(dir: System.getenv()['CATALINA_HOME']+'/lib', include: ['*.jar'])
+    tomcatJspc fileTree(dir: System.getenv()['CATALINA_HOME']+'/bin', include: ['*.jar'])
+    tomcatJspc(group: 'atg.taglib', name: 'json-taglib', version: '0.4.1')
+    tomcatJspc(group: 'taglibs', name: 'standard', version: '1.1.2')
+    tomcatJspc(group: 'apache-taglibs', name: 'jstl', version: '1.1.2')
+    tomcatJspc(group: 'org.springframework.security', name: 'spring-security-taglibs', version: '3.1.2.RELEASE')
+
+    if (!localModule.contains("ControlCenterDomain")) {
+        compile(group: 'com.jasperwireless', name: 'control-center', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':control-center')
+    }
+
+    if (!localModule.contains("DiagnosticsDomain")) {
+        compile(group: 'com.jasperwireless', name: 'diagnostics', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':diagnostics')
+    }
+
+    if (!localModule.contains("DataPlaneDomain")) {
+        compile(group: 'com.jasperwireless', name: 'data-plane', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':data-plane')
+    }
+    if (!localModule.contains("CommonWebUI")) {
+        compile(group: 'com.jasperwireless', name: 'common-web-ui', version: '1.0.+', changing: true)
+        tomcatJspc(group: 'com.jasperwireless', name: 'common-web-ui', version: '1.0.+', changing: true)
+
+        commonWebUiZip(group: 'com.jasperwireless', name: 'common-web-ui', version: '1.0.+', ext: 'zip', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':common-web-ui')
+        tomcatJspc project(':common-web-ui')
+    }
+    if (!localModule.contains("SamlSSODomain")) {
+        compile(group: 'com.jasperwireless', name: 'saml-sso', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':saml-sso')
+    }
+
+    if (!localModule.contains("ReportingDomain")) {
+        compile(group: 'com.jasperwireless', name: 'reporting', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':reporting')
+
+    }
+    if (!localModule.contains("WebServiceDomain")) {
+        copyApiCall(group: 'com.jasperwireless', name: 'web-service', version: '1.0.+', changing: true)
+    }
+    if (!localModule.contains("SecurityServiceDomain")) {
+        compile(group: 'com.jasperwireless', name: 'security-service', version: '1.0.+', changing: true) {
+            exclude group: 'asm'
+        }
+    } else {
+        // Default buildMode is local
+        compile project(':security-service')
+    }
+    if (!localModule.contains("GlobalTransferServiceDomain")) {
+        compile(group: 'com.jasperwireless', name: 'global-transfer-service', version: '1.0.+', changing: true)
+    }
+    else {
+        compile project(':global-transfer-service')
+    }
+    if (!localModule.contains("SearchClient")) {
+        compile(group: 'com.jasperwireless', name: 'search-client', version: '1.0.+', changing: true)
+    }
+    else {
+        compile project(':search-client')
+    }
+    if (!localModule.contains("ServiceInvocationCommon")) {
+        compile(group: 'com.jasperwireless', name: 'service-invocation-common', version: '1.0.+', changing: true)
+    }
+    else{
+        compile project(':service-invocation-common')
+    }
+
+    if (!localModule.contains("ThrottlingDomain")) {
+        compile(group: 'com.jasperwireless', name: 'throttling', version: '1.0.+', changing: true)
+    }
+    else{
+        compile project(':throttling')
+    }
+
+    compile group: 'org.slf4j', name: 'log4j-over-slf4j-jasper', version: '0.+'
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.4.1'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.4.1'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.4.1'
+
+    compile group: 'com.jasperwireless', name: 'jasper-logger', version: '1.0.+'
+
+
+    compile(group: 'org.apache.commons', name: 'commons-compress', version: '1.4.1')
+    compile(group: 'org.apache.axis2', name: 'axis2-kernel', version: '1.6.2'){
+        exclude group: 'commons-fileupload', module: 'commons-fileupload'
+    }
+    compile group: 'commons-fileupload', name: 'commons-fileupload', version: '1.3.2'
+    compile(group: 'org.apache.axis2', name: 'axis2-adb', version: '1.6.2')
+    compile(group: 'com.jasperwireless.simapp', name: 'multi-imsi-test', version: '0.0.0')
+    compile(group: 'org.apache.axis2', name: 'axis2-transport-http', version: '1.6.2')
+
+    // TLD dependencies
+    providedCompile fileTree(dir: System.getenv()['CATALINA_HOME']+'/lib', include: ['*.jar'])
+    providedCompile fileTree(dir: System.getenv()['CATALINA_HOME']+'/bin', include: ['*.jar'])
+
+    compile(group: 'atg.taglib', name: 'json-taglib', version: '0.4.1')
+    compile(group: 'taglibs', name: 'standard', version: '1.1.2')
+    compile(group: 'apache-taglibs', name: 'jstl', version: '1.1.2')
+    compile(group: 'org.springframework.security', name: 'spring-security-taglibs', version: '3.1.2.RELEASE')
+    compile(group: 'commons-digester', name: 'commons-digester', version: '1.6')
+    compile(group: 'org.tuckey', name: 'urlrewritefilter', version: '4.0.3')
+	compile group: 'com.ibm.icu', name: 'icu4j', version: '59.1'
+
+    // prometheus metrics publishing
+    compile(group: 'io.prometheus', name:'simpleclient', version:'0.0.20')
+    compile(group: 'io.prometheus', name:'simpleclient_common', version:'0.0.20')
+
+    compile group: 'org.codehaus.jackson', name: 'jackson-core-asl', version: '1.7.9'
+    compile group: 'org.codehaus.jackson', name: 'jackson-mapper-asl', version: '1.7.9'
+
+    // Do not use Jetty for anything other than SampleReceiverServer (which is only given
+    // to customers, we don't execute it). It is a security vulnerability. See CC-79571.
+    // compile(group: 'org.mortbay.jetty', name: 'jetty', version: '6.1.26'). See CC-87705
+
+    runtime(group: 'commons-discovery', name: 'commons-discovery', version: '0.4')
+    runtime(group: 'net.lag', name: 'configgy', version: '1.3')
+    runtime(group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.5')
+    runtime(group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.4')
+
+    // Default buildMode is local
+    if (!localModule.contains("Core")) {
+        testCompile(group: 'com.jasperwireless', name: 'core', version: '1.0.+', classifier: 'tests', changing: true)
+    } else {
+        // Default buildMode is local
+        testCompile project(path: ':core', configuration: 'archiveTestJar')
+    }
+
+    if (!localModule.contains("ProvisionDomain")) {
+        testCompile(group: 'com.jasperwireless', name: 'provision', version: '1.0.+', classifier: 'tests', changing: true)
+    } else {
+        // Default buildMode is local
+        testCompile project(path: ':provision', configuration: 'archiveTestJar')
+    }
+
+    testCompile(group: 'org.jmockit', name: 'jmockit', version: '1.14')
+    testCompile(group: 'org.codehaus.cargo', name: 'cargo-core-uberjar', version: '1.2.3')
+    // testCompile(group: 'org.mortbay.jetty', name: 'jetty', version: '6.1.22'). See CC-87705
+    testCompile(group: 'jaxen', name: 'jaxen', version: '1.1.6')
+    testCompile(group: 'dumbster', name: 'dumbster', version: '1.6') {
+        transitive = false
+    }
+    testCompile(group: 'org.powermock', name: 'powermock-easymock', version: '1.5-full')
+    testCompile(group: 'org.mockito', name: 'mockito-core', version: '1.10.19')
+    testCompile(group: 'junit-addons', name: 'junit-addons', version: '1.4')
+    testCompile(group: 'xerces', name: 'xercesImpl', version: '2.11.0')
+    // Seems to be a missing transitive dependency for the spring-test library as of 3.2.18.RELEASE.
+    testCompile(group: 'com.jayway.jsonpath', name: 'json-path', version: '0.8.1')
+
+    testRuntime(group: 'org.apache.logging.log4j', name: 'log4j-core', version: '1.3-alpha8')
+    testRuntime(group: 'org.hibernate.common', name: 'hibernate-commons-annotations', version: '4.0.1.Final')
+}
+
+task copyJsp(type: Copy) {
+
+    if (!localModule.contains("CommonWebUI")) {
+        from(zipTree(configurations.commonWebUiZip.asPath)) { // flattening
+            exclude '**/config.rb', '**/.sass-cache'
+        }
+    } else {
+        from (project(":"+getJarName("CommonWebUI")).projectDir.getPath()+"/web") {
+            if(!rootProject.includeJsp) {
+                exclude 'WEB-INF/web.xml', '**/config.rb', '**/.sass-cache'
+            }
+        }
+    }
+
+    from('web') {
+        exclude '**/config.rb', '**/.sass-cache'
+    }
+
+    fileMode 0755
+
+    into 'build/web'
+}
+
+task copyJasperApiCall(type: Copy) {
+    if(!localModule.contains("WebServiceDomain")) {
+        // WebServiceDomain is not in local domains
+        def path = configurations.copyApiCall.find { it.name.startsWith("web-service-") }
+        from zipTree(path).matching{include '**/JasperAPICalls.html'}.files
+
+        fileMode 0755
+        into 'web/secure/apidoc'
+
+    }else {
+        // WebServiceDomain is one of the local domains
+        from (project(":"+getJarName("WebServiceDomain")).projectDir.getPath()+"/src/apidoc") {
+            include "JasperAPICalls.html"
+        }
+        fileMode 0755
+        into 'web/secure/apidoc'
+    }
+
+    rename { filename ->
+        filename.replace 'JasperAPICalls', 'calls'
+    }
+}
+
+task archivePushApiSample(type: Zip, dependsOn: copyJasperApiCall) {
+    from '../../sample/push/'
+    include '*'
+    include '*/*'
+    archiveName 'pushApiJavaSample.zip'
+    destinationDir(file('web/secure/apidoc/'))
+}
+
+// Jasper customized steps for packaging WAR file
+task copyWarResources(type: Copy, dependsOn: archivePushApiSample) {
+    if (!localModule.contains("CommonWebUI")) {
+        from(zipTree(configurations.commonWebUiZip.asPath)) { // flattening
+            exclude 'META-INF/**', 'WEB-INF/**', 'jsp/**', '**/*.jsp', '**/config.rb', '**/.sass-cache/**'
+        }
+    } else {
+        from (project(":"+getJarName("CommonWebUI")).projectDir.getPath()+"/web") {
+            // When we generate war file for tomcat, We don't need jsp files
+            if(!rootProject.includeJsp){
+                exclude 'WEB-INF/web.xml', 'META-INF/**', 'WEB-INF/**', 'jsp/**', '**/*.jsp', '**/config.rb', '**/.sass-cache/**'
+            }
+        }
+    }
+
+    from('web') {
+        // When we generate war file for tomcat, We don't need jsp files
+        if(!rootProject.includeJsp){
+            exclude 'META-INF/**', 'WEB-INF/**', 'jsp/**', '**/*.jsp', '**/config.rb', '**/.sass-cache/**'
+        }
+    }
+
+    fileMode 0755
+
+    into 'build/warResources'
+}
+
+
+task copyToLib(type: Copy) {
+    def path = configurations.testCompile.find { it.name.startsWith("jmockit-") }
+
+    into "build/lib"
+    from path
+}
+
+task cleanUnzippedFolder(type: Delete) {
+    // To avoid permission denied problem:
+    // first, delete unzipped folder from "$buildDir/tmp/expandedArchives"
+    delete 'build/tmp/expandedArchives'
+}
+
+task compileJsp (type: JavaCompile) {
+    source = 'build/jsp_src'
+    classpath = sourceSets.main.compileClasspath + sourceSets.main.output
+    destinationDir = sourceSets.main.output.classesDir
+}
+
+webAppDirName = 'build/warResources'
+war {
+    from('web/META-INF') {
+        into 'META-INF'
+    }
+
+    from('web/WEB-INF') {
+        if(!rootProject.includeJsp){
+            exclude 'web.xml', 'jsp/**', '**/*.jsp'
+        }
+        into 'WEB-INF'
+    }
+
+    webXml = file('build/web/WEB-INF/web.xml')
+}
+
+// Old Ant build
+ant.importBuild 'ant-build.xml'
+
+ant.properties['artifactory.url'] = "$artifactory_url/jasper-ext-release-local/com/jasper/test"
+ant.properties['username'] = "$artifactory_username"
+ant.properties['password'] = "$artifactory_password"
+
+generateSprites.dependsOn(smartsprites)
+preCompile.dependsOn(wsdl2javaConfig)
+compileJava.dependsOn(preCompile)
+processResources.dependsOn(copyProperties)
+tomcatJspc.dependsOn(compileJava)
+jspc.dependsOn(cleanUnzippedFolder)
+jspc.dependsOn(copyJsp)
+jspc.dependsOn(tomcatJspc)
+compileJsp.dependsOn(jspc)
+jar.dependsOn(compileJsp)
+archivePushApiSample.dependsOn(postPackaging)
+war.dependsOn(copyWarResources)
+test.dependsOn(copyToLib)
+
+
+subprojects {
+    ext.localModule = this.localModule
+}

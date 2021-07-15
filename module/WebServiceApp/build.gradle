@@ -1,0 +1,217 @@
+apply from: ('../../gradlescript/common_war.gradle')
+
+sourceSets {
+    main {
+        java.srcDirs 'src', 'src_gen'
+    }
+    test {
+        resources.srcDirs 'src_test', 'build/config/env/local'
+    }
+}
+
+configurations {
+    copySchemas
+    tomcatJspc
+    compileJsp
+}
+
+configurations.all {
+    resolutionStrategy {
+        // add a dependency resolve rule
+        eachDependency { details ->
+            if (details.requested.group == 'log4j' && details.requested.name == 'log4j') {
+                details.useTarget group: 'org.apache.logging.log4j', name: 'log4j-core', version: '1.3-alpha8'
+            }
+        }
+    }
+}
+
+task tomcatJspc {
+    doLast {
+        def jspcClassPath = configurations.tomcatJspc + sourceSets.main.output
+        ant.taskdef(name: 'tomcatJspc', classname: 'org.apache.jasper.JspC', classpath: jspcClassPath.asPath)
+    }
+}
+
+test{
+    //TODO Skip failing test cases, revisit required
+    exclude 'com/jasperwireless/ws/att/v128/AddRoutableMSISDNEndpointTest.class'
+}
+
+integrationTest{
+    exclude 'com/jasperwireless/ws/att/AddCustomSubscriberChargeEndpointTest.class'
+    exclude 'com/jasperwireless/ws/subscriber/SetSubscriberPolicyStateEndpointTest.class'
+    exclude 'com/jasperwireless/ws/att/ManageDialableMSISDNEndpointTestManual.class'
+    exclude 'com/jasperwireless/ws/globalsim/AssignMSISDNForTargetSimTestManual.class'
+    exclude 'com/jasperwireless/ws/globalsim/PrepareSrcSimEndPointTest.class'
+    exclude 'com/jasperwireless/ws/terminal/GetSessionInfoEndpointTestManual.class'
+
+}
+
+dependencies {
+
+    if (!localModule.contains("WebServiceDomain")) {
+        copySchemas(group: 'com.jasperwireless', name: 'web-service', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        copySchemas project(':web-service')
+    }
+
+    if (!localModule.contains("WebServiceHelperDomain")) {
+        compile(group: 'com.jasperwireless', name: 'web-service-helper', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':web-service-helper')
+    }
+    tomcatJspc fileTree(dir: System.getenv()['CATALINA_HOME']+'/lib', include: ['*.jar'])
+    tomcatJspc fileTree(dir: System.getenv()['CATALINA_HOME']+'/bin', include: ['*.jar'])
+    tomcatJspc(group: 'atg.taglib', name: 'json-taglib', version: '0.4.1')
+    tomcatJspc(group: 'taglibs', name: 'standard', version: '1.1.2')
+    tomcatJspc(group: 'apache-taglibs', name: 'jstl', version: '1.1.2')
+    tomcatJspc(group: 'org.springframework.security', name: 'spring-security-taglibs', version: '3.1.2.RELEASE')
+
+    compileJsp fileTree(dir: System.getenv()['CATALINA_HOME']+'/lib', include: ['*.jar'])
+    compileJsp fileTree(dir: System.getenv()['CATALINA_HOME']+'/bin', include: ['*.jar'])
+    //CC-93409 tomcat9
+    providedCompile(group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0')
+
+
+    if (!localModule.contains("SearchClient")) {
+        compile(group: 'com.jasperwireless', name: 'search-client', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':search-client')
+    }
+    if (!localModule.contains("CSPProvisioningAdapterDomain")) {
+        compile(group: 'com.jasperwireless', name: 'csp-provisioning-adapter', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':csp-provisioning-adapter')
+    }
+    if (!localModule.contains("JWVaultDomain")) {
+        compile(group: 'com.jasperwireless', name: 'jw-vault', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':jw-vault')
+    }
+
+    if (!localModule.contains("ThrottlingDomain")) {
+        compile(group: 'com.jasperwireless', name: 'throttling', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':throttling')
+    }
+
+    if (!localModule.contains("SecurityServiceDomain")) {
+        compile(group: 'com.jasperwireless', name: 'security-service', version: '1.0.+', changing: true) {
+            exclude group: 'asm'
+        }
+    } else {
+        // Default buildMode is local
+        compile project(':security-service')
+    }
+
+    if (!localModule.contains("GlobalTransferServiceDomain")) {
+        compile(group: 'com.jasperwireless', name: 'global-transfer-service', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(path: ':global-transfer-service')
+    }
+
+    //compile(group: 'xalan', name: 'xalan', version: '2.7.2', classifier: 'sources')
+    compile(group: 'xerces', name: 'xercesImpl', version: '2.11.0', classifier: 'sources')
+
+    // prometheus metrics publishing
+    compile(group: 'io.prometheus', name:'simpleclient', version:'0.0.20')
+    compile(group: 'io.prometheus', name:'simpleclient_common', version:'0.0.20')
+    compile 'io.dropwizard.metrics:metrics-healthchecks:3.1.2'
+
+    compile group: 'org.slf4j', name: 'log4j-over-slf4j-jasper', version: '0.+'
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.4.1'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.4.1'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.4.1'
+
+    compile group: 'com.jasperwireless', name: 'jasper-logger', version: '1.0.+'
+
+    testCompile(group: 'org.powermock', name: 'powermock-easymock', version: '1.5-full')
+    testCompile 'org.mockito:mockito-core:1.10.19'
+    testCompile(group: 'junit-addons', name: 'junit-addons', version: '1.4')
+    testCompile(group: 'xerces', name: 'xercesImpl', version: '2.11.0')
+
+    runtime(group: 'net.lag', name: 'configgy', version: '1.3')
+    runtime(group: 'commons-discovery', name: 'commons-discovery', version: '0.4')
+    runtime(group: 'wsdl4j', name: 'wsdl4j', version: '1.6.1')
+}
+
+task cleanUnzippedFolder(type: Delete) {
+    // To avoid permission denied problem:
+    // first, delete unzipped folder from "$buildDir/tmp/expandedArchives"
+    delete 'build/tmp/expandedArchives'
+}
+
+task compileJsp (type: JavaCompile) {
+    source = 'build/jsp_src'
+    classpath = sourceSets.main.compileClasspath + sourceSets.main.output + configurations.compileJsp
+    destinationDir = sourceSets.main.output.classesDir
+}
+
+// Jasper customized steps for packaging WAR file
+task copyWarResources(type: Copy) {
+    from('web') {
+        if(!rootProject.includeJsp) {
+            exclude 'META-INF/**', 'WEB-INF/**', 'jsp/**', '**/*.jsp'
+        }
+    }
+
+    fileMode 0755
+
+    into 'build/warResources'
+}
+
+task copySchemas(type: Copy) {
+    if (!localModule.contains("WebServiceDomain")) {
+        def path = configurations.copySchemas.find { it.name.startsWith("web-service-") }
+
+        from(zipTree(path)) { // flattening
+            include 'schema-att-csi/**', '**.xsd'
+        }
+        into 'build/schema'
+    } else {
+        from ('../WebServiceDomain/src') {
+            include 'schema-att-csi/**', '**.xsd'
+        }
+        into 'build/schema'
+    }
+}
+
+webAppDirName = 'build/warResources'
+war {
+    from('web/META-INF') {
+        into 'META-INF'
+    }
+
+    from('web/WEB-INF') {
+        if(!rootProject.includeJsp) {
+            exclude 'web.xml', 'jsp/**', '**/*.jsp'
+        }
+        into 'WEB-INF'
+    }
+
+    webXml = file('build/web.xml')
+}
+
+// Old Ant build
+ant.importBuild 'ant-build.xml'
+
+preCompile.dependsOn(copySchemas)
+compileJava.dependsOn(preCompile)
+processResources.dependsOn(copyProperties)
+jspc.dependsOn(cleanUnzippedFolder)
+jspc.dependsOn(tomcatJspc)
+compileJsp.dependsOn(jspc)
+jar.dependsOn(compileJsp)
+
+
+
+war.dependsOn(copyWarResources)

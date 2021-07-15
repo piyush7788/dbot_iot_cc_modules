@@ -1,0 +1,409 @@
+apply plugin: "eclipse"
+
+ext.localModule = project.hasProperty('childModules') ? Eval.me(childModules) : []
+ext.buildEnv = project.hasProperty('buildEnv') ? buildEnv : 'local'
+
+processResources.eachFile { f ->
+    f.mode |= 0200 // enable write bit for file owner
+}
+
+processTestResources.eachFile { f ->
+    f.mode |= 0200 // enable write bit for file owner
+}
+
+
+
+sourceSets {
+    test {
+        // 'src_test' has been added here because there are xml files in src_test folder...
+        resources.srcDirs 'src_test', "build/config/env/$buildEnv"
+    }
+}
+
+test {
+
+    def sprIntegrationTests = [
+            'com/jasperwireless/**/SprServiceTest*.class'
+    ]
+
+    if(project.hasProperty('sprIntegration') && sprIntegration.toBoolean()) {
+        includes = sprIntegrationTests
+        if(System.getProperty("spr.adapter.host")!=null) {
+            systemProperty 'spr.adapter.host', System.getProperty("spr.adapter.host")
+        }
+        if(System.getProperty("spr.adapter.port")!=null) {
+            systemProperty 'spr.adapter.port', System.getProperty("spr.adapter.port")
+        }
+    } else {
+        exclude sprIntegrationTests
+    }
+
+    def hlrIntegrationTests = [
+            'com/jasperwireless/**/HlrDataCheck*TestIntegration.class',
+            'com/jasperwireless/**/HlrServiceTestIntegration.class',
+            'com/jasperwireless/**/HlrReconciliation*TestIntegration.class'
+    ]
+
+    if(project.hasProperty('hlrIntegration') && hlrIntegration.toBoolean()) {
+        if(project.hasProperty('hlrIntegrationUseRegistry') && hlrIntegrationUseRegistry.toBoolean()) {
+            includes = [
+                    'com/jasperwireless/**/HlrDataCheck*TestIntegration.class',
+                    'com/jasperwireless/**/HlrServiceTestManual.class',
+                    'com/jasperwireless/**/HlrReconciliation*TestManual.class'
+            ]
+
+            systemProperty 'hlr.test.useRegistry', 'true'
+
+        } else {
+            includes = hlrIntegrationTests
+        }
+        maxParallelForks = 1 // cannot run concurrently
+
+        systemProperty 'log4j.configuration', 'hlr_integration/log4j.xml'
+        systemProperty 'log4j.configurationFile', 'hlr_integration/log4j2.xml'
+
+        if(project.hasProperty('hlrIntegrationFilterParameters')) {
+            systemProperty 'hlr.test.filter.parameters', hlrIntegrationFilterParameters
+        }
+        if(project.hasProperty('hlrIntegrationAppLogFile')) {
+            systemProperty 'hlr.test.app.logFile', hlrIntegrationAppLogFile
+        }
+        if(project.hasProperty('includeRandomProfiles')) {
+            systemProperty 'hlr.test.includeRandomProfiles', includeRandomProfiles
+        }
+        if(project.hasProperty('hlrIntegrationJacocoEnabled')) {
+            systemProperty 'hlr.test.jacoco.enabled', hlrIntegrationJacocoEnabled
+        }
+        if(project.hasProperty('hlrIntegrationJacocoDestfile')) {
+            systemProperty 'hlr.test.jacoco.destfile', hlrIntegrationJacocoDestfile
+        }
+        excludes = []
+    } else {
+        exclude hlrIntegrationTests
+    }
+
+    exclude 'com/jasperwireless/**/PurgeProductionSimsOneTime.class' // Obsoleted test
+
+    //TODO skip failing test cases, CC-81622
+    exclude 'com/jasperwireless/provision/hadoop/flume/FlumeSimUsageManagerTestManual.class'
+    exclude 'com/jasperwireless/provision/vivo/VivoMsisdnUtilsTestManual.class'
+    exclude 'com/jasperwireless/provision/workflow/WorkflowManagerTest.class'
+
+    //TODO Skip long running tests to optimize the build, revisit required
+    exclude 'com/jasperwireless/provision/globalapi/GlobalAcctMappingManagerTest.class' //15s
+    exclude 'com/jasperwireless/provision/hlr/connpool/FixedObjectPoolTest.class'   //5s
+    exclude 'com/jasperwireless/provision/carrier/CarrierIpAddressDaoTest.class'    //13s
+    exclude 'com/jasperwireless/provision/dal/CatalogSyncRequestDaoTest.class'  //13s
+    exclude 'com/jasperwireless/provision/dal/OtaSmsMessageDaoImplTest.class'   //2m14s
+    exclude 'com/jasperwireless/provision/dal/SimSessionInfoRedisClusterDaoTest.class'  //1m
+    exclude 'com/jasperwireless/provision/dal/SpringTestCaseFuncTest.class' //1m17s
+    exclude 'com/jasperwireless/provision/globalsim/GlobalAcctMappingManagerTest.class' //15s
+    exclude 'com/jasperwireless/provision/imei/ImeiFileProcessorImplTest.class' //50s
+    exclude 'com/jasperwireless/provision/imei/TacAccessHelperTest.class'   //1m57s
+    exclude 'com/jasperwireless/provision/misc/GgsnInfoManagerTest.class'   //48s
+    exclude 'com/jasperwireless/provision/offers/WebDealManagerTest.class'  //2m28s
+    exclude 'com/jasperwireless/provision/pushapi/PushApiEventSubDaoTest.class' //47s
+    exclude 'com/jasperwireless/provision/pushapi/PushApiManagerImplTest.class' //3m
+    exclude 'com/jasperwireless/provision/pushapi/PushApiRedisEventTest.class'  //14s
+    exclude 'com/jasperwireless/provision/realTime/DatamonConnectionStatusTest.class' //3m43s
+    exclude 'com/jasperwireless/provision/servingbid/ServingBidMappingParserImplTest.class' //1m56s
+    exclude 'com/jasperwireless/provision/simconfig/SimConfigOptionSearchMapTest.class' //24s
+    exclude 'com/jasperwireless/provision/simconfig/SimConfigSearchMapTest.class'   //24s
+    exclude 'com/jasperwireless/provision/simconfig/SimProfileSearchMapTest.class'  //24s
+    //TODO Skip failing test cases, revisit required
+    exclude 'com/jasperwireless/provision/hlr/ApnOnHlrManagerTest.class'
+    exclude 'com/jasperwireless/provision/pushapi/PushApiManagerImplMockTest.class'
+    exclude 'com/jasperwireless/provision/realTime/SSHClientToGGSNTest.class'
+    exclude 'com/jasperwireless/provision/securedimei/SecuredImeiPolicyHistoryDaoTest.class'
+    exclude 'com/jasperwireless/provision/offerings/IPAuthServiceHandlerTest.class'
+    exclude 'com/jasperwireless/provision/policyplan/SprSubscriberManagerImplTest.class'
+    exclude 'com/jasperwireless/provision/simconfig/SimProfileDaoTest.class'
+    exclude 'com/jasperwireless/provision/offerings/AutomationRulesServiceHandlerTest.class'
+    exclude 'com/jasperwireless/provision/securedimei/SecuredImeiEventDaoTest.class'
+    exclude 'com/jasperwireless/provision/simconfig/SimConfigDaoTest.class'
+    exclude 'com/jasperwireless/provision/securedimei/SecuredImeiFileDaoTest.class'
+    exclude 'com/jasperwireless/provision/confighistory/ConfigHistoryManagerImplTest.class'
+    exclude 'com/jasperwireless/provision/offerings/SecureSIMServiceHandlerTest.class'
+    exclude 'com/jasperwireless/provision/securedimei/SecuredImeisTest.class'
+    exclude 'com/jasperwireless/provision/offerings/OfferingManagerImplTest.class'
+    exclude 'com/jasperwireless/provision/SimFileAcctTransferManagerTest.class'
+    //exclude 'com/jasperwireless/provision/premiumservice/PremiumServiceOrderManagerTest.class'
+    //exclude 'com/jasperwireless/provision/premiumservice/ImeiWhitelistPackageEnablerTest.class'
+    //exclude 'com/jasperwireless/provision/premiumservice/**'
+    exclude 'com/jasperwireless/provision/ImeiWhitelistPackageEnablerTest.class'
+    exclude 'com/jasperwireless/provision/IPAddressAuthenticationPackageEnablerTest.class'
+    exclude 'com/jasperwireless/provision/LocationBasedServicesPackageEnablerImplTest.class'
+    // exclude 'com/jasperwireless/provision/PremiumServiceDocManagerTest.class'
+
+    exclude 'com/jasperwireless/provision/PremiumServiceManagerTest.class'
+    exclude 'com/jasperwireless/provision/PremiumServiceOrderCallbackManagerImplTest.class'
+    //exclude 'com/jasperwireless/provision/PremiumServiceOrderManagerTest.class'
+    exclude 'com/jasperwireless/provision/PremiumServiceTagManagerTest.class'
+    exclude 'com/jasperwireless/provision/atteod/AttEodHelperTest.class'
+
+    exclude 'com/jasperwireless/provision/sim/voicemail/StreamWideVoiceMailAdapterClientTest.class'
+
+}
+
+integrationTest{
+    //TODO skip failing test cases, CC-81622
+    exclude 'com/jasperwireless/provision/hadoop/flume/FlumeSimUsageManagerTestManual.class'
+    exclude 'com/jasperwireless/provision/vivo/VivoMsisdnUtilsTestManual.class'
+    exclude 'com/jasperwireless/provision/workflow/WorkflowManagerTest.class'
+
+    exclude 'com/jasperwireless/provision/RedisClusterTestManual.class'
+    exclude 'com/jasperwireless/provision/RedisManagerTestManual.class'
+    exclude 'com/jasperwireless/provision/RedisTestManual.class'
+    exclude 'com/jasperwireless/provision/adapter/AsyncNERequestManagerTestIntegration.class'
+    exclude 'com/jasperwireless/provision/aggressiveDevices/AcctEventSlidingWindowManagerTestManual.class'
+    exclude 'com/jasperwireless/provision/analytics/AnalyticsReportManagerTestIntegration.class'
+    exclude 'com/jasperwireless/provision/assets/OfferTemplateDaoTest.class'
+    exclude 'com/jasperwireless/provision/cdr/CdrFieldManagerImplTestManual.class'
+    exclude 'com/jasperwireless/provision/dal/AcctCommPlanDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/AcctLocServiceSubDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/AcctLocServiceSubTierDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/AcctRatePlanMappingDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/AlertDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/AlertSubDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/ApnDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/AttPlmnLogDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/BatchLockDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/BillingCycleDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/BillingGroupAcctDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/BulkSimTransferRequestDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/BulkUpdatesDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/CarrierDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/CarrierMccMncDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/CommPlanDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/ConsumerDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/DealDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/DealReminderDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/DealReminderSimDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/DistributedSimChangeDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/DistributedSimTransferDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/EndConsumerDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/ExportFileHistoryDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/GlobalAcctMappingDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/GlobalPartnerDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/GlobalSimProfileMappingDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/GlobalSimTransferDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/GlobalTransferAuditTrailDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/LocalPrimaryToSSOGlobalAcctMapDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/LocationUpdateDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/MccCountryCodeDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/MobileDeviceDealFilterDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/MobilyHlrTxnDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/MsisdnCallbackNotificationDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/MsisdnPartnerTxDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/MtdZoneUsageRedisClusterDaoTestManual.class'
+    exclude 'com/jasperwireless/provision/dal/OperatorQosDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/PartnerApiTxnDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/PooledRatePlanDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/ProductDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/PrvgRequestsDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/PushApiRatePlanTierDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/PushApiRedisEventDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/QCodeDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/QosDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RSPToCarrierMappingDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RatePlanDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RatePlanOverrideDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RatePlanPolicyDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RawSimDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/ReplacementDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/ReservedSimIpAddressDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RoamResDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RoamingSteeringProfileDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimAuxFieldsDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimChangeAuditDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimChangeDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/PartnerApiTxnDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/PooledRatePlanDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/ProductDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/PrvgRequestsDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/PushApiRatePlanTierDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/PushApiRedisEventDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/QCodeDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/QosDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RSPToCarrierMappingDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RatePlanDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RatePlanOverrideDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RatePlanPolicyDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RawSimDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/ReplacementDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/ReservedSimIpAddressDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RoamResDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/RoamingSteeringProfileDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimAuxFieldsDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimChangeAuditDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimChangeDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimFileAcctTransferDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimFileDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimFileOrderUpdateDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimFileUploadConfigDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimHistoryDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimIpAddressDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimIpAddressDaoTestManual.class'
+    exclude 'com/jasperwireless/provision/dal/SimLocApiRequestLogDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimMigrationRequestDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimMonthToDateUsageAuxFieldsDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimMonthToDateUsageDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimMonthToDateZoneUsageDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimMonthlyRatePlanTermDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimOfferTermDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimOrderStagingDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimProfileDetailsDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimProvisionHistoryReportDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimRatePlanTermDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimSessionInfoDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimSpareRatePlanTermDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimStagingDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimUpdatesDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SimUsageNoSqlMessageDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SraAcctRequestDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SraBlockingDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SraProvisionExceptionDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SsoAuthTokenDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SsoLocalAccountDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SsoLocalUserInfoDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SsoOperatorDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SsoRemoteAccountDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SsoRemoteUserInfoDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/SsoUserActivityDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/TadigTemplateDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/TefPushNotificationDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/UIEventDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/VIVOMsisdnPartnerTxDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/VoiceMailsDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/WorkflowActionInstanceDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/WorkflowInstanceDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/ZoneDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/acctsimerasure/AcctSimErasureDaoTest.class'
+    exclude 'com/jasperwireless/provision/dal/simerasure/SimErasureDaoTest.class'
+    exclude 'com/jasperwireless/provision/hlr/ApnOnHlrManagerTest.class'
+    exclude 'com/jasperwireless/provision/hlr/HlrCCIPAdapterTestManual.class'
+    exclude 'com/jasperwireless/provision/monitor/NetworkElementCallStatisticsDaoTest.class'
+    exclude 'com/jasperwireless/provision/monitor/NetworkElementCallStatisticsImplTest.class'
+    exclude 'com/jasperwireless/provision/nms/OperatorMsisdnManagerImplTestManual.class'
+    exclude 'com/jasperwireless/provision/securedimei/SecuredImeiEventDaoTest.class'
+    exclude 'com/jasperwireless/provision/securedimei/SecuredImeiFileDaoTest.class'
+    exclude 'com/jasperwireless/provision/securedimei/SecuredImeiPolicyHistoryDaoTest.class'
+    exclude 'com/jasperwireless/ws/tef/TefMsisdnManagerImplTestManual.class'
+    exclude 'com/jasperwireless/ws/tef/TefMsisdnSimulateAsFaillTestManual.class'
+    exclude 'com/jasperwireless/provision/sim/SimSessionCountRedisManagerTestManual.class'
+    exclude 'com/jasperwireless/provision/sim/SimSessionInfoManagerTestManual.class'
+    exclude 'com/jasperwireless/provision/sim/SimUasageNoSqlManagerTestManual.class'
+    exclude 'com/jasperwireless/provision/sim/SimUsageAndSessionCountRedisManagerPerformanceTestManual.class'
+    exclude 'com/jasperwireless/provision/sim/SimUsageNoSqlAdapterTestManual.class'
+    exclude 'com/jasperwireless/provision/sim/SimUsageNosqlMessageTestManual.class'
+    exclude 'com/jasperwireless/provision/sim/SimUsageRedisManagerTestManual.class'
+    exclude 'com/jasperwireless/provision/simconfig/SimConfigDaoTest.class'
+    exclude 'com/jasperwireless/provision/simconfig/SimConfigOptionDaoTest.class'
+    exclude 'com/jasperwireless/provision/simconfig/SimProfileDaoTest.class'
+    exclude 'com/jasperwireless/provision/simupdates/SimUpdatesManagerTestManual.class'
+    exclude 'com/jasperwireless/provision/sms/QuerySmsByAppendixHexSmscMsgIdTestManual.class'
+    exclude 'com/jasperwireless/provision/sms/SmscAdapterClientTestManual.class'
+    exclude 'com/jasperwireless/provision/sra/SraBlockingManagerTest.class'
+    exclude 'com/jasperwireless/provision/srp/SwcRestRequestAttTestManual.class'
+    exclude 'com/jasperwireless/provision/srp/SwcRestRequestTestManual.class'
+    exclude 'com/jasperwireless/provision/sso/SsoManagerTest.class'
+    exclude 'com/jasperwireless/provision/securedimei/SecuredImeiEventDaoTest.class'
+    exclude 'com/jasperwireless/provision/securedimei/SecuredImeiFileDaoTest.class'
+    exclude 'com/jasperwireless/provision/securedimei/SecuredImeiPolicyHistoryDaoTest.class'
+}
+
+dependencies {
+    if (!localModule.contains("AuthDomain")) {
+        compile(group: 'com.jasperwireless', name: 'auth', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':auth')
+    }
+    if (!localModule.contains("ServiceRegistryDomain")) {
+        compile(group: 'com.jasperwireless', name: 'service-registry', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':service-registry')
+    }
+    if (!localModule.contains("SearchClient")) {
+        compile(group: 'com.jasperwireless', name: 'search-client', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':search-client')
+    }
+    if (!localModule.contains("WebServiceDomain")) {
+        compile(group: 'com.jasperwireless', name: 'web-service', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':web-service')
+    }
+    if (!localModule.contains("MessagingDomain")) {
+        compile(group: 'com.jasperwireless', name: 'messaging', version: '8.92.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':messaging')
+    }
+    if (!localModule.contains("ServiceInvocationCommon")) {
+        compile(group: 'com.jasperwireless', name: 'service-invocation-common', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':service-invocation-common')
+    }
+    if (!localModule.contains("MetricsFeedDomain")) {
+        compile(group: 'com.jasperwireless', name: 'metrics-feed', version: '1.0.+', changing: true)
+    } else {
+        // Default buildMode is local
+        compile project(':metrics-feed')
+    }
+    if (!localModule.contains("MemcacheClientDomain")) {
+        testRuntime(group: 'com.jasperwireless', name: 'memcache-client', version: '8.92.+', changing: true)
+    } else {
+        // Default buildMode is local
+        testRuntime project(':memcache-client')
+    }
+    compile (group: 'com.netflix.eureka', name: 'eureka-client', version: '1.4.6') {
+        exclude group: 'asm'
+        exclude group: 'com.thoughtworks.xstream', module: 'xstream'
+        exclude group: 'javax.servlet'
+    }
+
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '1.3-alpha8'
+    compile(group: 'com.google.apis', name: 'google-api-services-analytics', version: 'v3-rev100-1.19.0') {
+        exclude group: 'com.google.guava', module: 'guava-jdk5' //Exclude guava-jdk5.jar since it has conflict with the guava-18.0.jar
+    }
+    compile(group: 'com.google.http-client', name: 'google-http-client', version: '1.19.0')
+    compile(group: 'org.apache.poi', name: 'poi', version: '3.17')
+    compile(group: 'com.notnoop.apns', name: 'apns', version: '0.1.6')
+
+    compile(group: 'org.apache.velocity', name: 'velocity', version: '1.7')
+    compile(group: 'com.jcraft', name: 'jsch', version: '0.1.55')
+    compile(group: 'com.jhlabs', name: 'javaproj', version: '1.0')
+    compile(group: 'com.teleatlas', name: 'teleatlas-ws-Client', version: '0.0')
+    compile(group: 'twilio', name: 'twilio-java-client', version: '0.3')
+    if (!localModule.contains("Core")) {
+        testCompile(group: 'com.jasperwireless', name: 'core', version: '1.0.+', classifier: 'tests', changing: true)
+    } else {
+        // Default buildMode is local
+        testCompile project(path: ':core', configuration: 'archiveTestJar')
+    }
+
+    testCompile(group: 'org.powermock', name: 'powermock-easymock', version: '1.5-full')
+    testCompile(group: 'com.github.tomakehurst', name: 'wiremock', version: '1.50')
+    testCompile(group: 'org.springframework', name: 'spring-web', version: '3.0.3.RELEASE')
+    testCompile (group: 'org.mockito', name: 'mockito-core', version: '1.10.19')
+    testCompile(group: 'org.codehaus.cargo', name: 'cargo-core-uberjar', version: '1.2.3')
+    testCompile(group: 'junit-addons', name: 'junit-addons', version: '1.4')
+    testCompile(group: 'xerces', name: 'xercesImpl', version: '2.11.0')
+
+    testRuntime(group: 'net.lag', name: 'configgy', version: '1.3')
+	testRuntime(group: 'commons-discovery', name: 'commons-discovery', version: '0.4')
+    testRuntime(group: 'org.hibernate.common', name: 'hibernate-commons-annotations', version: '4.0.1.Final')
+    testRuntime(group: 'org.javassist', name: 'javassist', version: '3.17.1-GA')
+}
+
+artifacts {
+    archiveTestJar testJar
+    archives testJar
+}
