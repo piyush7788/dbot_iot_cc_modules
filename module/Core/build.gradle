@@ -104,7 +104,7 @@ dependencies {
 
     compile group: 'com.jasper.commons', name: 'metrics', version: '1.2.10'
 
-    runtime(group: 'net.sf.ehcache', name: 'ehcache', version: '2.10.5')
+    runtime(group: 'net.sf.ehcache', name: 'ehcache', version: '2.10.9.2')
 
     // https://mvnrepository.com/artifact/com.github.ua-parser/uap-java
     compile group: 'com.github.ua-parser', name: 'uap-java', version: '1.5.0'
