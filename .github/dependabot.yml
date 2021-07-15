@@ -2,14 +2,14 @@ version: 2
 updates:
   - package-ecosystem: "gradle"
     directory: "/module/MicroServiceClient/"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 100
     schedule:
       interval: "daily"
 version: 2
 updates:
   - package-ecosystem: "gradle"
     directory: "/module/ProvisionApp/"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 100
     schedule:
       interval: "daily"
 
@@ -17,41 +17,48 @@ version: 2
 updates:
   - package-ecosystem: "gradle"
     directory: "/module/ProvisionDomain/"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 100
     schedule:
       interval: "daily"
 version: 2
 updates:
   - package-ecosystem: "gradle"
     directory: "/module/RegistryServerApp/"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 100
     schedule:
       interval: "daily"
 version: 2
 updates:
   - package-ecosystem: "gradle"
     directory: "/module/RestWebServiceApp/"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 100
     schedule:
       interval: "daily"
 version: 2
 updates:
   - package-ecosystem: "gradle"
     directory: "/module/SecurityServiceDomain/"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 100
     schedule:
       interval: "daily"
 version: 2
 updates:
   - package-ecosystem: "gradle"
     directory: "/module/WebServiceApp/"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 100
     schedule:
       interval: "daily"
 version: 2
 updates:
   - package-ecosystem: "gradle"
     directory: "/module/AAAServerApp/"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 100
+    schedule:
+      interval: "daily"
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/module/Core/"
+    open-pull-requests-limit: 100
     schedule:
       interval: "daily"
