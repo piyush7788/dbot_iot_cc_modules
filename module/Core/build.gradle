@@ -79,7 +79,7 @@ dependencies {
     }
     compile(group: 'org.springframework.ws', name: 'spring-ws-core', version: '2.1.4.RELEASE-all')
     compile(group: 'com.jasperwireless', name: 'jasper-core-scala', version: '8.92.0')
-    compile(group: 'redis.clients', name: 'jedis', version: '2.9.0')
+    compile(group: 'redis.clients', name: 'jedis', version: '3.6.2')
     compile(group: 'org.opensaml', name: 'opensaml', version: '2.6.1'){
         exclude group: 'xalan', module: 'xalan'
     }
