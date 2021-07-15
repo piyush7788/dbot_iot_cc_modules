@@ -100,7 +100,7 @@ dependencies {
     compile group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.0.2'
     compile group: 'com.datastax.cassandra', name: 'cassandra-driver-mapping', version: '3.0.2'
     compile group: 'com.datastax.cassandra', name: 'cassandra-driver-extras', version: '3.0.2'
-    compile group: 'org.apache.cassandra', name: 'cassandra-clientutil', version: '3.0.2'
+    compile group: 'org.apache.cassandra', name: 'cassandra-clientutil', version: '3.9'
 
     compile group: 'com.jasper.commons', name: 'metrics', version: '1.2.10'
 
