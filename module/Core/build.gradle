@@ -119,7 +119,7 @@ dependencies {
     testCompile(group: 'org.powermock', name: 'powermock-easymock', version: '1.5-full')
     testCompile(group: 'org.mockito', name: 'mockito-core', version: '1.10.19')
     testCompile(group: 'junit-addons', name: 'junit-addons', version: '1.4')
-    testCompile(group: 'xerces', name: 'xercesImpl', version: '2.11.0')
+    testCompile(group: 'xerces', name: 'xercesImpl', version: '2.12.1')
 
     testIntegration group: 'org.apache.logging.log4j', name: 'log4j-core', version: '1.3-alpha8'
     testRuntime group: 'org.hibernate.common', name: 'hibernate-commons-annotations', version: '4.0.1.Final'
