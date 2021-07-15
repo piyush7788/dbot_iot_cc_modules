@@ -55,10 +55,3 @@ updates:
     open-pull-requests-limit: 10
     schedule:
       interval: "daily"
-version: 2
-updates:
-  - package-ecosystem: "gradle"
-    directory: "/module/Core/"
-    open-pull-requests-limit: 100
-    schedule:
-      interval: "daily"
