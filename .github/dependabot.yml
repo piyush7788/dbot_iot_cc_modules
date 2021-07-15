@@ -1,6 +1,55 @@
 version: 2
 updates:
   - package-ecosystem: "gradle"
-    directory: "/"
-    update_schedule: "live"
-    
+    directory: "/module/MicroServiceClient/"
+    schedule:
+      interval: "daily"
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/module/ProvisionApp/"
+    schedule:
+      interval: "daily"
+
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/module/ProvisionDomain/"
+    schedule:
+      interval: "daily"
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/module/RegistryServerApp/"
+    schedule:
+      interval: "daily"
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/module/RestWebServiceApp/"
+    schedule:
+      interval: "daily"
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/module/SecurityServiceDomain/"
+    schedule:
+      interval: "daily"
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/module/WebServiceApp/"
+    schedule:
+      interval: "daily"
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/module/AAAServerApp/"
+    schedule:
+      interval: "daily"
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/module/Core/"
+    schedule:
+      interval: "daily"
